@@ -1,7 +1,7 @@
 /******************************************************************************
- * @file 5_rtc_delay.c
- * @brief RTC Delay Exercise
- * @author Silicon Labs
+ * @file gstq.c
+ * @brief Play national anthem alarm tone
+ * @author Anonymous
  * @version 1.01
  ******************************************************************************
  * @section License
@@ -30,6 +30,7 @@
  * arising from your use of this Software.
  *
  ******************************************************************************/
+#include "gstq.h"
 #include "em_device.h"
 #include "em_cmu.h"
 #include "em_emu.h"
@@ -39,90 +40,27 @@
 #include "em_chip.h"
 #include "em_rtc.h"
 
-/*************************Local macros for pin control************************/
-
-// Uncomment the following lines for STK3700
-#define LED_PORT 	gpioPortC
-#define LED_PIN  	0
-
-#define PA14_PORT 	gpioPortA
-#define PA14_PIN 	14
-
-/*************************Local timing macros ************************/
-
-// Clock frequency for note timer
-#define RTC_FREQ 32768
-
-/* Musical note frequencies for clock running at RTC_FREQ
- * To calculate, divide clock frequency by note frequency
- * multiplied by 2 e.g.
- * G ~ 392 Hz ~ 32768 / 784 ~ 42 cycles on a 32768 Hz
- * clock.
- */
-
-// HARDCODED TO REDUCE RUNTIME ARITHMETIC
-#define F4_SHARP 44 // RTC_FREQ / 370 * 2) // 44 // 370.0 Hz
-#define G4 42 //RTC_FREQ / 392 * 2) // 42 // 392 Hz
-#define A4 37 // RTC_FREQ / 440 * 2) // 37 // 440 Hz
-#define B4 33 // RTC_FREQ / 494 * 2) // 33 // 493.9
-#define C5 31 // RTC_FREQ / 523 * 2) // 31 // 523.3
-#define D5 28 // RTC_FREQ / 587 * 2) // 28 // 587.3
-#define E5 25 // RTC_FREQ / 659 * 2) // 25 // 659.3
-#define REST 50 // Special case, no PWM, pin will be set to 0.
-
-// Song tempo - hardcoded for now, parametrised in future
-// Use judicious to avoid floating point arithmetic and division by zero
-// e.g. 60, 120, 180 should be ok for now
-#define BPM 60
-// Parameters to define note duration
-#define SECONDS_PER_MINUTE 60
-#define CROTCHET_DIV 4 // 1 Beat divided by 4
-#define QUAVER_DIV 8   // 1 Beat divided by 8 and so on
-#define DOTTED_QUAVER_DIV 6
-#define DOTTED_CROTCHET_DIV 3
-#define DOTTED_MINIM_DIV 1
-
-
-
-/* Tempo for TIMER0 clock with 1024 prescaler
- * Assuming national anthem played at 60 BPM
- * e.g. 1 second (crochet) ~ 13672 cycles
- */
-
-// HARDCODED TO REDUCE RUNTIME ARITHMETIC
-// 1 second at 60 BPM
-#define DOTTED_MINIM 32768 //  RTC_FREQ / (BPM / SECONDS_PER_MINUTE) * DOTTED_MINIM_DIV // RTC_FREQ // Duration = unit e.g. crotchet (1/60 of a minute)
-#define DOTTED_CROTCHET 20508 // RTC_FREQ / (BPM / SECONDS_PER_MINUTE) * DOTTED_CROTCHET_DIV // 20508
-#define CROTCHET 13672 // RTC_FREQ / (BPM / SECONDS_PER_MINUTE) * CROTCHET_DIV
-#define DOTTED_QUAVER 10254
-#define QUAVER 6836 // RTC_FREQ / (BPM / SECONDS_PER_MINUTE) * DOTTED_QUAVER_DIV // 6836
-#define SEMIQUAVER 3418
-
-
-// Note duration struct
-
-typedef struct {
-	uint32_t pitch;
-	uint32_t duration;
-} note;
-
-note notes[]={
-	// BAR 1 - 19
+// Initialise count and song struct
+uint8_t iCountNote = 0;
+note notes[SONG_LENGTH] =
+{
+	// BAR 1 - 19 notes and pauses
 	{ .pitch = G4, .duration = DOTTED_QUAVER },
 	{ .pitch = REST, .duration = SEMIQUAVER },
 	{ .pitch = G4, .duration = DOTTED_QUAVER },
 	{ .pitch = REST, .duration = SEMIQUAVER },
-	{ .pitch = G4, .duration = DOTTED_QUAVER },
+	{ .pitch = A4, .duration = DOTTED_QUAVER },
 	{ .pitch = REST, .duration = SEMIQUAVER },
 	// BAR 2
-	{ .pitch = G4, .duration = CROTCHET },
+	{ .pitch = F4_SHARP, .duration = CROTCHET },
 	{ .pitch = REST, .duration = QUAVER },
 	{ .pitch = G4, .duration = QUAVER },
 	{ .pitch = A4, .duration = CROTCHET },
 	// BAR 3
 	{ .pitch = B4, .duration = DOTTED_QUAVER },
 	{ .pitch = REST, .duration = SEMIQUAVER },
-	{ .pitch = C5, .duration = CROTCHET },
+	{ .pitch = B4, .duration = CROTCHET },
+	{ .pitch = C5, .duration = QUAVER },
 	// BAR 4
 	{ .pitch = B4, .duration = DOTTED_CROTCHET },
 	{ .pitch = A4, .duration = QUAVER },
@@ -181,11 +119,11 @@ note notes[]={
 	{ .pitch = G4, .duration = DOTTED_MINIM }
 };
 
-// HARDCODED TO AVOID RUNTIME ARITHMETIC
-#define SONG_LENGTH 55 // (sizeof(notes) / sizeof(note) - 1) ~ number of notes minus 1 ~ zero indexed
-
-uint8_t iCountNote = 0;
-
+/**************************************************************************//**
+ * @brief GetNextNote
+ * Get note counter position in note struct array.
+ * @return next note to be played.
+ *****************************************************************************/
 note GetNextNote() {
 	note playNote;
 	playNote.pitch = notes[iCountNote].pitch;
@@ -194,15 +132,24 @@ note GetNextNote() {
 	return playNote;
 }
 
-typedef enum { FALSE, TRUE } boolean;
-
+/**************************************************************************//**
+ * @brief IsRest
+ * Sounder state based on parsed pitch. REST means no sound. Anything else,
+ * sound.
+ * @return true if output pin should be toggled at pitch frequency.
+ *****************************************************************************/
 boolean IsRest(void) {
 	if(notes[iCountNote].pitch == REST) {
 		return TRUE;
 	}
 	return FALSE;
 }
-void LoadNote() {
+
+/**************************************************************************//**
+ * @brief LoadNote
+ * Set pitch timer (RTC) and duration timer (TIMER0);
+ *****************************************************************************/
+void LoadNote(void) {
 	note playNote = GetNextNote();
 	// Set new pitch
 	RTC_CompareSet(0, playNote.pitch);
@@ -250,16 +197,14 @@ void TIMER0_IRQHandler(void)
 {
   /* Clear flag for TIMER0 overflow interrupt */
   TIMER_IntClear(TIMER0, TIMER_IF_OF);
-
-  // create a pause
-  // GPIO_PinOutToggle(LED_PORT, LED_PIN);
-
-  /* Toggle LED ON/OFF */
-  // GPIO_PinOutToggle(LED_PORT, LED_PIN);
-
+  /* Load next note (pitch and duration) */
   LoadNote();
 }
 
+/**************************************************************************//**
+ * @brief initRTC
+ * Interrupt Service Routine TIMER0 Interrupt Line
+ ****************************************************************************/
 void initRTC(void)
 {
 
@@ -285,7 +230,6 @@ void initRTC(void)
   NVIC_EnableIRQ(RTC_IRQn);
 
 }
-
 
 int main(void)
 {
