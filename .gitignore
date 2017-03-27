@@ -1,0 +1,18 @@
+# Files #
+.cproject
+.project
+*.axf
+
+# directories #
+.settings
+/emlib
+"/GNU ARM v4.7.3 - Debug/CMSIS"
+"/GNU ARM v4.7.3 - Debug/emlib"
+"/GNU ARM v4.7.3 - Debug/src"
+"/GNU ARM v4.7.3 - Debug/GSTQ.axf"
+"/GNU ARM v4.7.3 - Debug/GSTQ.bin"
+"/GNU ARM v4.7.3 - Debug/GSTQ.ld"
+"/GNU ARM v4.7.3 - Debug/GSTQ.map"
+"/GNU ARM v4.7.3 - Debug/makefile"
+"/GNU ARM v4.7.3 - Debug/*.mk"
+

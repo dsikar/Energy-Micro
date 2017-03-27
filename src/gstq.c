@@ -42,6 +42,7 @@
 
 // Initialise count and song struct
 uint8_t iCountNote = 0;
+
 note notes[SONG_LENGTH] =
 {
 	// BAR 1 - 19 notes and pauses
@@ -177,14 +178,13 @@ void RTC_IRQHandler(void)
   /* Get and clear interrupt flags */
   uint32_t flags = RTC_IntGet();
   RTC_IntClear(flags);
-  /* Toggle LED if overflow flag was set */
+  /* Toggle Sounder Pin if overflow flag was set */
   if ( flags & RTC_IF_COMP0 ) {
-    // GPIO_PinOutToggle(LED_PORT, LED_PIN);
 	if(!IsRest()) {
-		GPIO_PinOutToggle(PA14_PORT, PA14_PIN);
+		GPIO_PinOutToggle(SOUNDER_PORT, SOUNDER_PIN);
 	} else {
-	      /* Turn LED off */
-	      GPIO_PortOutSetVal(PA14_PORT, 0x0, 1<<PA14_PIN);
+	      /* Pause - no toggling required */
+	      GPIO_PortOutSetVal(SOUNDER_PORT, 0x0, 1<<SOUNDER_PIN);
 	}
   }
 }
@@ -271,16 +271,19 @@ int main(void)
   TIMER_Init(TIMER0, &timerInit);
 
   /* Configure LED pin as push/pull output */
-  GPIO_PinModeSet(LED_PORT,         /* Port */
-                  LED_PIN,          /* Pin */
+  GPIO_PinModeSet(SOUNDER_ENABLE_PORT,         /* Port */
+		  	  	  SOUNDER_ENABLE_PIN,          /* Pin */
                   gpioModePushPull, /* Mode */
                   0 );              /* Output value */
 
   /* Configure LED pin as push/pull output */
-  GPIO_PinModeSet(PA14_PORT,         /* Port */
-		  	  	  PA14_PIN,          /* Pin */
+  GPIO_PinModeSet(SOUNDER_PORT,         /* Port */
+		  	  	  SOUNDER_PIN,          /* Pin */
                   gpioModePushPull, /* Mode */
                   0 );              /* Output value */
+
+  // Enable sounder
+  GPIO_PortOutSetVal(SOUNDER_ENABLE_PORT, 0x01, 1<<SOUNDER_ENABLE_PIN);
 
   /* Start LFXO and wait until it is stable */
   CMU_OscillatorEnable(cmuOsc_LFXO, true, true);
@@ -299,8 +302,11 @@ int main(void)
 
   /* Stay in this loop forever */
   while (1) {
-    /* Enter EM2 */
-	// EMU_EnterEM2(false);
+    /* Enter EM1 */
 	EMU_EnterEM1();
   }
 }
+
+
+
+

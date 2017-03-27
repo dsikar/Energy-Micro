@@ -19,11 +19,11 @@
 
 /************************* Local macros for pin control************************/
 // Enable
-#define LED_PORT 	gpioPortC
-#define LED_PIN  	0
+#define SOUNDER_ENABLE_PORT 	gpioPortC
+#define SOUNDER_ENABLE_PIN  	13
 // PWM
-#define PA14_PORT 	gpioPortA
-#define PA14_PIN 	14
+#define SOUNDER_PORT 	gpioPortA
+#define SOUNDER_PIN 	0
 
 /************************* Local timing macros ************************/
 // Clock frequency
